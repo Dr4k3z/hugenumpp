@@ -109,3 +109,24 @@ TEST(LargeNum_DivisionByInt, ZeroDivKIsZero) {
     LargeNum q = a / 7;
     EXPECT_TRUE(q == a);              // still zero
 }
+
+TEST(LargeNum_DiviosnByInt, IntDivision) {
+    LargeNum a(10, 8);
+    a.setIntegerPart(10);
+    auto res = a/2;
+    EXPECT_TRUE(res.getIntegerPart() ==  5);
+}
+
+bool string_comparison() {
+    // remove trailing zeros....
+    return false;
+}
+
+TEST(LargeNum_DivisionByInt, FloatDivision) {
+    LargeNum a(10, 8);
+    a.setIntegerPart(10);
+    const auto res = a/4;
+
+    EXPECT_TRUE(res.getIntegerPart() == 2);
+    ASSERT_EQ(res.to_string(), std::string("2.5"));
+}

@@ -4,7 +4,6 @@
 
 #ifndef LARGENUM_H
 #define LARGENUM_H
-#include <iomanip>
 #include <memory>
 #include <string>
 #include <ostream>
@@ -20,32 +19,34 @@ public:
     LargeNum(LargeNum&& other) noexcept;
     LargeNum& operator=(LargeNum&& other) noexcept;
 
+    static int compare(const LargeNum& a, const LargeNum& b);
+    static LargeNum midpoint(const LargeNum& a, const LargeNum& b){ return (a + b) / 2; }
+    static LargeNum fromInt(uint64_t n, uint64_t groupNum, uint16_t groupSize);
+    static bool checkSizes(const LargeNum& a, const LargeNum& b);
+    static int baseFor(const LargeNum& x){ return static_cast<int>(std::pow(10, x.m_groupSize)); }
+
     LargeNum operator+(const LargeNum& other) const;
     LargeNum operator-(const LargeNum& other) const;
     LargeNum operator*(const LargeNum& other) const;
-    LargeNum operator/(const LargeNum& other) const;
-    LargeNum operator/(const int divisor) const;
+    LargeNum operator/(int divisor) const;
     bool operator==(const LargeNum &) const;
 
-    [[nodiscard]] auto getDigit(const size_t index) const;
     [[nodiscard]] auto getGroupNum()const { return m_groupNum; }
     [[nodiscard]] auto getGroupSize() const { return m_groupSize; }
     [[nodiscard]] auto getIntegerPart() const { return m_integerPart; }
+    [[nodiscard]] std::string to_string() const;
 
-    void setDigit(const size_t index, const int val);
     void setIntegerPart(const int val) { m_integerPart = val; }
 
     void print() const;
-    void write(const std::string& filename);
-
-    static std::unique_ptr<LargeNum> load(const std::string& filename);
+    void writeToFile(const std::string& filename) const;
+    static LargeNum readFromFile(const std::string& filename, uint64_t groupNum, uint16_t groupSize);
+    static size_t firstDigitDiff(const LargeNum& a, const LargeNum& b);
 private:
     const uint64_t m_groupNum;
     const uint16_t m_groupSize;
     std::unique_ptr<int[]> m_data;
     long int m_integerPart;
 };
-
-
 
 #endif //LARGENUM_H

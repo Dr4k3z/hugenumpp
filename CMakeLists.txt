@@ -13,7 +13,8 @@ target_include_directories(hugenum PUBLIC
 )
 
 add_executable(hugenumpp main.cpp)
-target_link_libraries(hugenumpp PRIVATE hugenum)
+# add_executable(prototype prototype.cpp)
+target_link_libraries(hugenumpp PUBLIC hugenum)
 
 # --- Google Test ---
 enable_testing()
