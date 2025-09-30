@@ -12,6 +12,12 @@
 #include <fstream>
 #include <cmath>
 #include <algorithm>
+#include <cassert>
+
+class NotImplementedError final : public std::logic_error {
+public:
+    NotImplementedError() : std::logic_error("Function not yet implemented") {}
+};
 
 LargeNum::LargeNum() : m_groupNum(1), m_groupSize(1), m_integerPart(0) {
     m_data = std::make_unique<int[]>(1);
@@ -25,6 +31,16 @@ LargeNum::LargeNum(const uint64_t groupNum, const uint16_t groupSize) : m_groupN
 LargeNum::LargeNum(const LargeNum &other) : m_groupNum(other.m_groupNum), m_groupSize(other.m_groupSize), m_integerPart(other.m_integerPart) {
     m_data = std::make_unique<int[]>(m_groupNum);
     std::copy_n(other.m_data.get(), m_groupNum, m_data.get());
+}
+
+LargeNum& LargeNum::operator=(LargeNum&& other) noexcept {
+    assert(checkSizes(*this, other) && "move-assign requires same dimensions");
+
+    if (this == &other) return *this;
+
+    m_integerPart = other.m_integerPart;
+    m_data = std::move(other.m_data);
+    return *this;
 }
 
 bool LargeNum::checkSizes(const LargeNum& a, const LargeNum& b) {
@@ -86,34 +102,27 @@ LargeNum& LargeNum::operator=(const LargeNum& other) {
 }
 
 LargeNum LargeNum::operator-(const LargeNum &other) const {
-    if (!checkSizes(*this, other)) {
-        throw std::runtime_error("Mismatched dimensions"); // TODO handle this better with custom exception class
-    }
-
+    if (!checkSizes(*this, other)) throw std::runtime_error("Mismatched dimensions");
     LargeNum res(m_groupNum, m_groupSize);
     const int base = static_cast<int>(std::pow(10, m_groupSize));
     int borrow = 0;
 
     for (int i = static_cast<int>(m_groupNum)-1; i >= 0; --i) {
-        const int lhs = m_data[i];
-
-        if (const int rhs = other.m_data[i]; lhs < rhs) {
-            res.m_data[i] = lhs + base - rhs;
+        long long lhs = static_cast<long long>(m_data[i]) - borrow;
+        const long long rhs = other.m_data[i];
+        if (lhs < rhs) {
+            lhs += base;
             borrow = 1;
         } else {
-            res.m_data[i] = lhs - rhs;
             borrow = 0;
         }
+        res.m_data[i] = static_cast<int>(lhs - rhs);
     }
 
+    // integer part with final borrow
     res.m_integerPart = m_integerPart - other.m_integerPart - borrow;
     return res;
 }
-
-class NotImplementedError final : public std::logic_error {
-public:
-    NotImplementedError() : std::logic_error("Function not yet implemented") {}
-};
 
 LargeNum LargeNum::operator*(const LargeNum &other) const {
     if (!checkSizes(*this, other)) {
@@ -170,9 +179,17 @@ LargeNum LargeNum::operator/(const int divisor) const {
     return result;
 }
 
+LargeNum LargeNum::operator/(const LargeNum &other) const {
+    throw NotImplementedError{};
+}
+
+
 bool LargeNum::operator==(const LargeNum& other) const {
     if (!checkSizes(*this, other)) {
         // throw std::runtime_error("Dimensions not matched"); // TODO EXCEPTION
+        return false;
+    }
+    if (m_integerPart != other.m_integerPart) {
         return false;
     }
     for (size_t i = 0; i<m_groupNum; i++) {
@@ -208,6 +225,9 @@ LargeNum LargeNum::readFromFile(const std::string& filename, const uint64_t grou
     std::ifstream in(filename);
     if (!in) throw std::runtime_error("Cannot open file: " + filename);
 
+    if (groupSize > 9) throw std::runtime_error("groupSize > 9 is not supported with int-based groups. "
+                                                "Use groupSize <= 9, or change LargeNum.m_data to 64-bit."); // TODO: I dont like this limitation
+
     std::string s;
     in >> s;
     auto dotPos = s.find('.');
@@ -239,7 +259,7 @@ LargeNum LargeNum::readFromFile(const std::string& filename, const uint64_t grou
 
 
 size_t LargeNum::firstDigitDiff(const LargeNum& a, const LargeNum& b){
-    if (!LargeNum::checkSizes(a, b)) {
+    if (!checkSizes(a, b)) {
         throw std::runtime_error("Mismatched LargeNum dimensions");
     }
 
@@ -266,4 +286,70 @@ size_t LargeNum::firstDigitDiff(const LargeNum& a, const LargeNum& b){
     }
 
     return a.m_groupNum*a.m_groupSize;
+}
+
+
+size_t LargeNum::firstDigitDiff(const std::string &filename) const {
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        throw std::runtime_error("pi.txt not found or couldn't be opened");
+    }
+
+    std::string other;
+    std::getline(file, other);
+    if (other.empty()) {
+       throw std::runtime_error("Invalid txt format! Can't read the number");
+    }
+
+    auto dot = other.find('.');
+    // TODO: check also integer PART
+    other = other.substr(dot+1);
+
+    std::string valStr;
+    for (int i=0; i < m_groupNum; i++) {
+        int groupVal = this->getDigit(i);
+        std::ostringstream oss;
+        oss << std::setw(m_groupSize) << std::setfill('0') << groupVal;
+        valStr += oss.str();
+    }
+
+    int matched = 0;
+    for (size_t i = 0; i < valStr.size() && i < other.size(); ++i) {
+        if (valStr[i] == other[i]) {
+            ++matched;
+        } else {
+            // return idx mismatch
+            return i;
+        }
+    }
+
+    return std::min(valStr.size(), other.size());
+}
+
+size_t LargeNum::firstDigitDiff(const LargeNum &other) const {
+    std::string other_str = other.to_string();
+
+    const auto dot = other_str.find('.');
+    // TODO: check also integer PART
+    other_str = other_str.substr(dot+1);
+
+    std::string valStr;
+    for (int i=0; i < m_groupNum; i++) {
+        const int groupVal = this->getDigit(i);
+        std::ostringstream oss;
+        oss << std::setw(m_groupSize) << std::setfill('0') << groupVal;
+        valStr += oss.str();
+    }
+
+    int matched = 0;
+    for (size_t i = 0; i < valStr.size() && i < other_str.size(); ++i) {
+        if (valStr[i] == other_str[i]) {
+            ++matched;
+        } else {
+            // return idx mismatch
+            return i;
+        }
+    }
+
+    return std::min(valStr.size(), other_str.size());
 }
