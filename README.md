@@ -2,13 +2,12 @@
 
 A tiny C++ library for big-precision decimal arithmetic (grouped base-10 digits).  
 Some basic algorithms to compute known mathematical constants like $\pi$, $e$ or $\phi$ are already provided in the `Algorithms` namespace, along with an iterative procedure to compute the square root of integer numbers, based on the bisection method. 
----
 
 ## Requirements
 
 - **CMake ≥ 3.31**
 - A C++17 compiler
-- (Optional, for tests) **GoogleTest** — expected to be cloned **next to** this repo (see below)
+- (Optional, for tests) **GoogleTest** — the CMake expects it to be the folder above the current project. Change it to your installation.
 
 ---
 
